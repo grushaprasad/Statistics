@@ -503,19 +503,11 @@ mean(means$Petal.Length) - mean(c(mean(subset(means, Sepal.Length.cat_sc == 'lon
 
     ## [1] -0.1805682
 
-### Continuous predictor
+Continuous predictor
+====================
 
-``` r
-lm(Petal.Length ~ Sepal.Length, data = iris)
-```
-
-    ## 
-    ## Call:
-    ## lm(formula = Petal.Length ~ Sepal.Length, data = iris)
-    ## 
-    ## Coefficients:
-    ##  (Intercept)  Sepal.Length  
-    ##       -7.101         1.858
+With one predictor
+------------------
 
 ``` r
 lm(Petal.Length ~ Sepal.Length, data = two_species)
@@ -529,30 +521,148 @@ lm(Petal.Length ~ Sepal.Length, data = two_species)
     ##  (Intercept)  Sepal.Length  
     ##       -7.180         1.835
 
-This says that when there is a one unit difference in the sepal length between two irises, on average the difference in petal length is going to be 1.86. Note since this is an expected difference, we can't actually get the number directly from our data by subtracting the mean petal length of two irises with one unit difference in petal length.
+The intercept in this case is not interpretable because it is the Petal.Length when Sepal.Length is 0 - which it can never be.
+
+The coefficient says that when there is a one unit difference in the sepal length between two irises, on average the difference in petal length is going to be 1.84. Note since this is an expected difference, we can't actually get the number directly from our data by subtracting the mean petal length of two irises with one unit difference in petal length.
+
+Let us look at the effect on centering
 
 ``` r
-unique(iris$Sepal.Length)
+c. <- function (x) scale(x, scale = FALSE)
+
+lm(Petal.Length ~ c.(Sepal.Length), data = two_species)
 ```
 
-    ##  [1] 5.1 4.9 4.7 4.6 5.0 5.4 4.4 4.8 4.3 5.8 5.7 5.2 5.5 4.5 5.3 7.0 6.4
-    ## [18] 6.9 6.5 6.3 6.6 5.9 6.0 6.1 5.6 6.7 6.2 6.8 7.1 7.6 7.3 7.2 7.7 7.4
-    ## [35] 7.9
+    ## 
+    ## Call:
+    ## lm(formula = Petal.Length ~ c.(Sepal.Length), data = two_species)
+    ## 
+    ## Coefficients:
+    ##      (Intercept)  c.(Sepal.Length)  
+    ##            2.861             1.835
+
+While the slope does not change, the intercept becomes more interpretable. It should be the mean of the Petal.Length when Sepal.Length = mean(Sepal.Length) - in other words it is the average petal length of an iris with an average sepal length.
+
+Two predictors and interaction with centering
+---------------------------------------------
+
+### Dummy coding of species
 
 ``` r
-mean(subset(iris, Sepal.Length == 5.4)$Petal.Length - subset(iris, Sepal.Length == 4.4)$Petal.Length)
+lm(Petal.Length ~ c.(Sepal.Length)*Species, data = two_species)
 ```
 
-    ## [1] 0.7
-
-### Aside on multicollinearity
-
-The above model assumes that species and sepal.length are not correlated and the variance in the petal.length explained by species is different from the variance in petal.length explained by sepal.length. However a look at the data shows that this assumption is not valid.
+    ## 
+    ## Call:
+    ## lm(formula = Petal.Length ~ c.(Sepal.Length) * Species, data = two_species)
+    ## 
+    ## Coefficients:
+    ##                        (Intercept)                    c.(Sepal.Length)  
+    ##                             1.5232                              0.1316  
+    ##                  Speciesversicolor  c.(Sepal.Length):Speciesversicolor  
+    ##                             2.4176                              0.5548
 
 ``` r
-plot(two_species$Sepal.Length.cat,two_species$Species)
+contrasts(two_species$Species)
 ```
 
-![](regressions_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-31-1.png)
+    ##            versicolor
+    ## setosa              0
+    ## versicolor          1
 
-Most of the long sepals are in versicolor. So it is not clear if the species or the sepal length predict the
+The intercept is the average petal length of setosa whose sepal length is the average sepal length.
+
+The coefficient of Sepal.Length is how much the mean petal length of setosa's vary with one unit difference in Sepal.Length
+
+The coefficient of Species is mean(versicolor with average sepal length) - mean(setosa with average sepal length)
+
+The interaction is the difference between between the slopes of Sepal length for setosa and versicolor. We can get the slopes for setosa and versicolor by running the model on subsets of the two\_species data.
+
+``` r
+lm(Petal.Length ~ c.(Sepal.Length), data = subset(two_species, Species == 'setosa'))
+```
+
+    ## 
+    ## Call:
+    ## lm(formula = Petal.Length ~ c.(Sepal.Length), data = subset(two_species, 
+    ##     Species == "setosa"))
+    ## 
+    ## Coefficients:
+    ##      (Intercept)  c.(Sepal.Length)  
+    ##           1.4620            0.1316
+
+``` r
+lm(Petal.Length ~ c.(Sepal.Length), data = subset(two_species, Species == 'versicolor'))
+```
+
+    ## 
+    ## Call:
+    ## lm(formula = Petal.Length ~ c.(Sepal.Length), data = subset(two_species, 
+    ##     Species == "versicolor"))
+    ## 
+    ## Coefficients:
+    ##      (Intercept)  c.(Sepal.Length)  
+    ##           4.2600            0.6865
+
+So the slope of the interaction is 0.6865 - 0.1316 = 0.5549
+
+In other words how much the mean petal length of setosas vary with one unit difference in Sepal.Length and how much the mean petal length of versicolors vary with one unit difference in Sepal.Length
+
+### Contrast coding of species
+
+``` r
+lm(Petal.Length ~ c.(Sepal.Length)*Species_sc, data = two_species)
+```
+
+    ## 
+    ## Call:
+    ## lm(formula = Petal.Length ~ c.(Sepal.Length) * Species_sc, data = two_species)
+    ## 
+    ## Coefficients:
+    ##                  (Intercept)              c.(Sepal.Length)  
+    ##                       2.7320                        0.4091  
+    ##                  Species_sc1  c.(Sepal.Length):Species_sc1  
+    ##                      -1.2088                       -0.2774
+
+``` r
+contrasts(two_species$Species_sc)
+```
+
+    ##            [,1]
+    ## setosa        1
+    ## versicolor   -1
+
+The intercept is the average petal length of irises (both setosas and versicolors) whose sepal length is the average sepal length.
+
+The coefficient of Sepal.Length is how much the mean petal length of irises (both setosas and versicolors) vary with one unit difference in Sepal.Length. So this is more like the "main effect" of Sepal.Length
+
+The coefficient of Species is mean(irises with average sepal length) - mean(setosa with average sepal length). In other words how much does a particular species vary from the average. So this is the main effect of Species.
+
+The interaction might be the difference between between the slopes of Sepal length for irises and setosa. We can get the slopes for setosa and versicolor by running the model on subsets of the two\_species data.
+
+``` r
+lm(Petal.Length ~ c.(Sepal.Length), data = two_species)
+```
+
+    ## 
+    ## Call:
+    ## lm(formula = Petal.Length ~ c.(Sepal.Length), data = two_species)
+    ## 
+    ## Coefficients:
+    ##      (Intercept)  c.(Sepal.Length)  
+    ##            2.861             1.835
+
+``` r
+lm(Petal.Length ~ c.(Sepal.Length), data = subset(two_species, Species == 'setosa'))
+```
+
+    ## 
+    ## Call:
+    ## lm(formula = Petal.Length ~ c.(Sepal.Length), data = subset(two_species, 
+    ##     Species == "setosa"))
+    ## 
+    ## Coefficients:
+    ##      (Intercept)  c.(Sepal.Length)  
+    ##           1.4620            0.1316
+
+But it does not seem to be the case.
