@@ -360,4 +360,86 @@ lm(Petal.Length ~ c.(Sepal.Length), data = subset(two_species, Species == 'setos
 ```
 But it does not seem to be the case. 
 
+# Statistical inference
+
+### Residual error
+
+A regression model is a linear equation + an error term - which can be thought of as unexplained variance. The residual standard deviation gives us the average distance of the observed outcomes from the predicted values. Therefore it gives us an estimate of how much of the variance is unexplained. Note the degrees of freedom to estimate this is n-k where n is the number of observations and k is the number of parameters being estimated. The closer k is to n, the more likely it is for our model to overfit the data - because in the limit, if we had one parameter for one observation we can perfectly fit the data with 0 error. 
+
+
+### Standard error
+
+While the residual error tells us how much of the variance in the data is explained by the model with our estimated coefficients, they can't give us an estimate of how likely it is that these coefficients are explaining our data by chance (i.e. the difference between the groups predicted by the coefficients is not statistically significant). In order to estimate that we need the standard error for the coefficients - which we can get from the summary of the model.  
+
+
+```{r}
+summary(lm(Petal.Length ~ c.(Sepal.Length)*Species_sc, data = two_species))
+
+```
+
+We can construct a 95% confidence interval from the standard errors in the following way
+
+$$CI = estimate \pm 2*SE $$
+This confidence interval tells us that all of the coefficients in this interval would be consistent with 95% of our data. The null hypothesis for a regression coefficent is that it is equal to 0 (i.e. that coefficient does not play a role in predicting the data). Therefore in order for a coeffcient to be statistically significant, the CI for the estimate of that coefficient should not contain 0. 
+
+Let us consider our model with one cateogrical predictor with dummy coding
+
+```{r}
+
+summary(lm(Petal.Length ~ Species, data = two_species))
+```
+
+
+This model tells us that the mean difference in petal length between versicolor and setosa is 2.798. The CI tells us that any other coefficient in that interval will be equal to the mean difference in petal length between the species for 95% of our data. If this interval contains 0, then it means that if we assume that the mean difference in petal length between setosa and versicolor is 0, that assumption would be consistent with 95% of our data. Conversely if the interval does not contain 0, then 95% of our data is consistent with the fact that the mean difference is *not* 0. Hence if 0 does not fall in the CI, then we can be pretty confident in our estimate. 
+
+**Questions**
+Is this correct? What does 95% of our data mean exactly? Does it mean any subset of our data with 95% in it? Or does it mean 95% of the time?? 
+
+
+# Assumptions of regression models
+
+These assumptions are taken from Gelman and Hill (pg 46)
+
+1. The variable being predicted is a linear combination of specific predictors  - i.e. you *add* different predictors together. If we think that y = abc and not y = a + b + c, we could transform the data such that our model is y = loga + logb + logc. ALternatively we could include interactions
+
+2. Errors from the prediction line are independent - if they are not independent is this when why we use mixed effect modeling?
+
+3. Variance of the regression estimates are equal.
+
+4. Regression errors are normally distributed. 
+
+According to Gelman and Hill, the last two are not that important
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

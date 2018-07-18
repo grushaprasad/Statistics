@@ -666,3 +666,88 @@ lm(Petal.Length ~ c.(Sepal.Length), data = subset(two_species, Species == 'setos
     ##           1.4620            0.1316
 
 But it does not seem to be the case.
+
+Statistical inference
+=====================
+
+### Residual error
+
+A regression model is a linear equation + an error term - which can be thought of as unexplained variance. The residual standard deviation gives us the average distance of the observed outcomes from the predicted values. Therefore it gives us an estimate of how much of the variance is unexplained. Note the degrees of freedom to estimate this is n-k where n is the number of observations and k is the number of parameters being estimated. The closer k is to n, the more likely it is for our model to overfit the data - because in the limit, if we had one parameter for one observation we can perfectly fit the data with 0 error.
+
+### Standard error
+
+While the residual error tells us how much of the variance in the data is explained by the model with our estimated coefficients, they can't give us an estimate of how likely it is that these coefficients are explaining our data by chance (i.e. the difference between the groups predicted by the coefficients is not statistically significant). In order to estimate that we need the standard error for the coefficients - which we can get from the summary of the model.
+
+``` r
+summary(lm(Petal.Length ~ c.(Sepal.Length)*Species_sc, data = two_species))
+```
+
+    ## 
+    ## Call:
+    ## lm(formula = Petal.Length ~ c.(Sepal.Length) * Species_sc, data = two_species)
+    ## 
+    ## Residuals:
+    ##      Min       1Q   Median       3Q      Max 
+    ## -0.68611 -0.12305 -0.01386  0.14040  0.79607 
+    ## 
+    ## Coefficients:
+    ##                              Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept)                   2.73200    0.03806  71.787  < 2e-16 ***
+    ## c.(Sepal.Length)              0.40905    0.06155   6.646 1.83e-09 ***
+    ## Species_sc1                  -1.20879    0.03806 -31.763  < 2e-16 ***
+    ## c.(Sepal.Length):Species_sc1 -0.27742    0.06155  -4.507 1.85e-05 ***
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Residual standard error: 0.2508 on 96 degrees of freedom
+    ## Multiple R-squared:  0.971,  Adjusted R-squared:  0.9701 
+    ## F-statistic:  1070 on 3 and 96 DF,  p-value: < 2.2e-16
+
+We can construct a 95% confidence interval from the standard errors in the following way
+
+*C**I* = *e**s**t**i**m**a**t**e* ± 2 \* *S**E*
+ This confidence interval tells us that all of the coefficients in this interval would be consistent with 95% of our data. The null hypothesis for a regression coefficent is that it is equal to 0 (i.e. that coefficient does not play a role in predicting the data). Therefore in order for a coeffcient to be statistically significant, the CI for the estimate of that coefficient should not contain 0.
+
+Let us consider our model with one cateogrical predictor with dummy coding
+
+``` r
+summary(lm(Petal.Length ~ Species, data = two_species))
+```
+
+    ## 
+    ## Call:
+    ## lm(formula = Petal.Length ~ Species, data = two_species)
+    ## 
+    ## Residuals:
+    ##    Min     1Q Median     3Q    Max 
+    ## -1.260 -0.162  0.038  0.238  0.840 
+    ## 
+    ## Coefficients:
+    ##                   Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept)        1.46200    0.05010   29.18   <2e-16 ***
+    ## Speciesversicolor  2.79800    0.07085   39.49   <2e-16 ***
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Residual standard error: 0.3542 on 98 degrees of freedom
+    ## Multiple R-squared:  0.9409, Adjusted R-squared:  0.9403 
+    ## F-statistic:  1560 on 1 and 98 DF,  p-value: < 2.2e-16
+
+This model tells us that the mean difference in petal length between versicolor and setosa is 2.798. The CI tells us that any other coefficient in that interval will be equal to the mean difference in petal length between the species for 95% of our data. If this interval contains 0, then it means that if we assume that the mean difference in petal length between setosa and versicolor is 0, that assumption would be consistent with 95% of our data. Conversely if the interval does not contain 0, then 95% of our data is consistent with the fact that the mean difference is *not* 0. Hence if 0 does not fall in the CI, then we can be pretty confident in our estimate.
+
+**Questions** Is this correct? What does 95% of our data mean exactly? Does it mean any subset of our data with 95% in it? Or does it mean 95% of the time??
+
+Assumptions of regression models
+================================
+
+These assumptions are taken from Gelman and Hill (pg 46)
+
+1.  The variable being predicted is a linear combination of specific predictors - i.e. you *add* different predictors together. If we think that y = abc and not y = a + b + c, we could transform the data such that our model is y = loga + logb + logc. ALternatively we could include interactions
+
+2.  Errors from the prediction line are independent - if they are not independent is this when why we use mixed effect modeling?
+
+3.  Variance of the regression estimates are equal.
+
+4.  Regression errors are normally distributed.
+
+According to Gelman and Hill, the last two are not that important
