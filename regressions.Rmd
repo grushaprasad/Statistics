@@ -1,0 +1,363 @@
+---
+title: "Regressions tutorial"
+author: "Grusha Prasad"
+date: "July 15, 2018"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plyr)
+```
+
+# What is linear regression?
+
+Linear regression allows us to describe the relationship between a dependent variable (y) and one or more independent variables (x). Unlike with correlation where we are interested in the extent to which x and y are related to each other, with regression we are specifically interested in predicting y from x - i.e. how much of the variance in y can be explained by grouping the data by x. Given this goal, people often talk about regression in terms of causation. For example consider the following equation: 
+
+$$ y = 3x + 4$$
+
+One way to describe this model: The model predicts that one unit increase in x causes/ is associated with 3 units increase in y. Therefore the coefficient of x is the degree to which x can impact y. This description has a causal flavour because it describes it as a difference within an individual or a group (i.e. how would the response of an indvidual change if they were given the 'treatment'). However Gelman and Hill argue that we should be thinking of regressions as a difference between individuals and groups. 
+
+> "Linear regression is a method that summarizes how the average values of a numerical outcome variable vary over subpopulations defined by linear functions of predictors." (pg 31)
+
+Another way to describe the model: The model predicts that two groups that have a one unit difference in x on average tend to have two units difference in y. The coefficient of x is predicted *average difference* in y for groups that vary in x. 
+
+
+## Brief description of the dataset
+
+```{r}
+data(iris)
+summary(iris)
+```
+
+There are 4 continuous variables and one categorical variable. In the remainder of this document we will predict the Petal.Length from the other variables. 
+
+# Categorical predictors
+
+## One predictor 
+
+Let us start by looking at just two species.
+```{r}
+
+two_species <- subset(iris, Species != 'virginica')
+two_species$Species <- factor(two_species$Species)  #removes ghost levels
+lm(two_species$Petal.Length ~ two_species$Species)
+```
+
+In order to understand what the intercept and the coefficients mean, it is important to understand how the contrasts are coded for the variable
+
+```{r}
+contrasts(two_species$Species)
+```
+
+As a default, R uses dummy coding - which means that it treats one of the levels as a "baseline" and compares all the other levels with this baseline. (It picked 'setosa' as the basline because the levels were organized alphabetically)
+
+With dummy coding with one predictor, the intercept is the mean petal length of the baseline category (i.e. setosa)
+
+```{r}
+mean(subset(two_species, Species == 'setosa')$Petal.Length)
+```
+
+The coefficient is the mean difference in petal length between baseline cateogry and the category it is being compared to. 
+
+```{r}
+mean(subset(two_species, Species == 'versicolor')$Petal.Length - subset(two_species, Species == 'setosa')$Petal.Length)
+```
+
+The same idea applies when there are more than two levels to a predictor. There are if a variable has k levels, there are k-1 coefficients to estimate
+```{r}
+lm(iris$Petal.Length ~ iris$Species)
+contrasts(iris$Species)
+```
+The intercept is again the mean of the baseline (setosa)
+```{r}
+mean(subset(iris, Species == 'setosa')$Petal.Length)
+```
+
+The coefficients are the mean difference between the baseline and the cateogory that is being compared to the baseline
+```{r}
+mean(subset(iris, Species == 'setosa')$Petal.Length - subset(iris, Species == 'versicolor')$Petal.Length)
+mean(subset(iris, Species == 'setosa')$Petal.Length - subset(iris, Species == 'virginica')$Petal.Length)
+```
+
+Note, the dummy contrasts assumes we have a baseline level that we can compare the other levels with. This might be useful when thinking about treatment groups and control groups. However this is not always useful for other kinds of categorical variables. Instead we can use summed contrasts - which will allow us to compare the means for groups with the grand mean.  
+
+```{r}
+two_species$Species_sc <- two_species$Species
+contrasts(two_species$Species_sc) <- "contr.sum"
+contrasts(two_species$Species_sc)
+
+lm(two_species$Petal.Length ~ two_species$Species_sc)
+```
+The intercept (or the baseline we are comparing the group means to) in this case is the grand mean of petal length across species
+
+```{r}
+mean(two_species$Petal.Length)
+```
+
+The coefficient in this case is how much the average petal length of each species varies from the grand mean.  
+```{r}
+mean(two_species$Petal.Length) - mean((subset(two_species, Species == 'versicolor')$Petal.Length))
+mean(two_species$Petal.Length) - mean((subset(two_species, Species == 'setosa')$Petal.Length))
+```
+When there are two conditions this is just half of the distance between the conditions we get with the 0,1 dummy coding. So if we wanted to have the same effect size we could set the contrasts to be -0.5 and 0.5 instead of 1 and -1. 
+
+Similarly looking at summed contrasts for three levels.
+
+```{r}
+iris$Species_sc <- iris$Species
+contrasts(iris$Species_sc) <- "contr.sum"
+contrasts(iris$Species_sc)
+
+lm(iris$Petal.Length ~ iris$Species_sc)
+
+mean(iris$Petal.Length)
+
+mean(iris$Petal.Length) - mean((subset(iris, Species == 'setosa')$Petal.Length))
+mean(iris$Petal.Length) - mean((subset(iris, Species == 'versicolor')$Petal.Length))
+
+```
+
+Note though this doesn't directly tell us value for virgincia, this should be negative sum of the other two. -(-2.296 + 0.502) = 1.794 
+[link](http://atyre2.github.io/2016/09/03/sum-to-zero-contrasts.html)
+
+
+
+#### Two predictors   
+
+Let us start by adding another categorical predictor.  
+
+```{r}
+two_species$Sepal.Length.cat <- factor(ifelse(two_species$Sepal.Length > mean(two_species$Sepal.Length), "long", "short"))
+
+contrasts(two_species$Species) 
+contrasts(two_species$Sepal.Length.cat)
+
+lm(Petal.Length ~ Species + Sepal.Length.cat, data = two_species)
+
+```
+
+```{r}
+means <- ddply(two_species, c('Sepal.Length.cat', 'Species'), summarise, Petal.Length = mean(Petal.Length, na.rm = T))
+
+means
+```
+
+The intercept should be mean petal length for the baseline for both predictors (so setosa with long sepals) - but this not the case
+
+```{r}
+mean(subset(two_species, Species == 'setosa' & Sepal.Length.cat == 'long')$Petal.Length)
+
+```
+
+The coefficient for Species/Sepal.Length should be the mean difference in petal length between the baseline and the category being compared to (or )
+
+[link](https://stats.stackexchange.com/questions/120030/interpretation-of-betas-when-there-are-multiple-categorical-variables/120035#120035)
+
+```{r}
+mean(subset(means, Species == 'versicolor')$Petal.Length) - mean(subset(means, Species == 'setosa')$Petal.Length)
+
+mean(subset(means, Sepal.Length.cat == 'short')$Petal.Length) - mean(subset(means, Sepal.Length.cat == 'long')$Petal.Length)
+
+```
+
+But these values are identical to the intercept and coefficient of the model. Why? 
+
+**Let us look at this model with summed contrasts.** 
+
+
+```{r}
+two_species$Sepal.Length.cat_sc <- two_species$Sepal.Length.cat
+contrasts(two_species$Sepal.Length.cat_sc) <- "contr.sum"
+lm(Petal.Length ~ Species_sc + Sepal.Length.cat_sc, data = two_species)
+
+contrasts(two_species$Sepal.Length.cat_sc)
+
+```
+
+The intercept is the grand mean. 
+
+```{r}
+mean(two_species$Petal.Length)
+```
+
+It seems like the coefficients for species and sepal.length should be the difference between the grand mean and the comparison levels. 
+
+```{r}
+mean(two_species$Petal.Length) - mean(subset(two_species, Species == 'versicolor')$Petal.Length)
+mean(two_species$Petal.Length) - mean(subset(two_species, Sepal.Length.cat == 'short')$Petal.Length)
+```
+
+However that appears to not be the case. 
+
+## Adding interactions
+
+### With dummy coding
+```{r}
+lm(Petal.Length ~ Sepal.Length.cat * Species, data = two_species)
+```
+
+The intercept of the model with interaction is the mean petal length of both *reference groups* (unlike the model without the interaction in which the intercept was the mean petal length of both *baseline groups*)
+
+```{r}
+mean(subset(two_species,Sepal.Length.cat == 'long' & Species == 'setosa')$Petal.Length)
+```
+The coefficient for Sepal.Length is the difference between short and long for the baseline/ reference species group (setosa)
+
+```{r}
+mean(subset(two_species, Sepal.Length.cat == 'short' & Species == 'setosa')$Petal.Length) - mean(subset(two_species, Sepal.Length.cat == 'long' & Species == 'setosa')$Petal.Length) 
+```
+
+The coefficient for Species is the difference between versicolor and setosa for the baseline/ reference sepal.length group (long)
+
+```{r}
+mean(subset(two_species, Sepal.Length.cat == 'long' & Species == 'versicolor')$Petal.Length) - mean(subset(two_species, Sepal.Length.cat == 'long' & Species == 'setosa')$Petal.Length)
+```
+
+Since the coefficients are in terms of the reference group of the other predictor, they can't be interepreted as main effects (since the main effect would be just the average difference between the categories)
+
+The interaction is the difference between the intercept and "additive effect" of both the reference groups. [link](https://stats.stackexchange.com/questions/122246/interpretation-of-interaction-term/122251#122251)
+
+In our case it is:
+
+$$short versicolor - (long\ setosa + (short \ setosa - long \ setosa) + (long \ versicolor - long \ setosa))$$
+
+ $$= short \ versicolor + long \ setosa - short \ setosa  - long \ versicolor$$
+ $$= (short \ versicolor + long \ setosa) - (short \ setosa + long \ versicolor)$$
+ $$= (short \ versicolor - short \ setosa) + (long \ setosa - long \ versicolor)$$
+ 
+```{r}
+mean(subset(two_species,Sepal.Length.cat == 'short' & Species == 'versicolor')$Petal.Length) - mean(subset(two_species, Sepal.Length.cat == 'short' & Species == 'setosa')$Petal.Length) + mean(subset(two_species, Sepal.Length.cat == 'long' & Species == 'setosa')$Petal.Length) - mean(subset(two_species, Sepal.Length.cat == 'long' & Species == 'versicolor')$Petal.Length) 
+
+```
+
+Note, if there is no interaction, short versicolor will be equal to short setosa and hence they will cancel out. Similarly long setosa will be equal to long versicolor and will cancel out. Hence if there is 0 interaction the model with the interaction term will be the same as the model without the interaction term. 
+
+**Question:** Should you always have an interaction term and if the difference between the predictors is by chance it won't be significant?
+
+### With summed contrasts:
+
+Gelman and Hill say: 
+
+> block quote
+"Models with interaction can often be easily interpreted if we first pre-process the data by centering each input variable about its mean or some other convenient reference point"
+
+For categorical variables, using summer contrasts is a way of centering the variables about a reference point - i.e. 0.   
+
+```{r}
+contrasts(two_species$Sepal.Length.cat_sc) <- "contr.sum"
+
+lm(Petal.Length ~  Species_sc * Sepal.Length.cat_sc, data = two_species)
+
+contrasts(two_species$Sepal.Length.cat_sc)
+contrasts(two_species$Species_sc)
+```
+The intercept like earlier, is the average petal length across species and sepal lengths. 
+
+```{r}
+
+means <- ddply(two_species, c('Sepal.Length.cat_sc', 'Species_sc'), summarise, Petal.Length = mean(Petal.Length, na.rm = T))
+means
+
+mean(means$Petal.Length)
+
+```
+Note here we can't just take the mean of Petal.Length because the number of observations in each group is not equal. 
+
+Unlike with dummy coding, the coefficients of Species and Sepal.Length are more directly interpretable as the main effect. 
+
+```{r}
+mean(means$Petal.Length) - mean(subset(means, Sepal.Length.cat_sc == 'short')$Petal.Length)
+
+mean(means$Petal.Length) - mean(subset(means, Species_sc == 'versicolor')$Petal.Length)
+
+```
+I am not sure what the interaction should be but it seems like it should be the combination of two predictors subtracted from the baseline
+```{r}
+mean(means$Petal.Length) - mean(c(mean(subset(means, Sepal.Length.cat_sc == 'long')$Petal.Length, mean(subset(means, Species_sc == 'setosa')$Petal.Length))))
+```
+
+
+
+
+
+# Continuous predictor
+
+## With one predictor
+
+```{r}
+lm(Petal.Length ~ Sepal.Length, data = two_species)
+```
+The intercept in this case is not interpretable because it is the Petal.Length when Sepal.Length is 0 - which it can never be. 
+
+The coefficient says that when there is a one unit difference in the sepal length between two irises, on average the difference in petal length is going to be 1.84. Note since this is an expected difference, we can't actually get the number directly from our data by subtracting the mean petal length of two irises with one unit difference in petal length. 
+
+Let us look at the effect on centering
+
+```{r}
+c. <- function (x) scale(x, scale = FALSE)
+
+lm(Petal.Length ~ c.(Sepal.Length), data = two_species)
+```
+
+While the slope does not change, the intercept becomes more interpretable. It should be the mean of the Petal.Length when Sepal.Length = mean(Sepal.Length) - in other words it is the average petal length of an iris with an average sepal length. 
+
+
+## Two predictors and interaction with centering
+
+### Dummy coding of species
+
+```{r}
+
+lm(Petal.Length ~ c.(Sepal.Length)*Species, data = two_species)
+
+contrasts(two_species$Species)
+
+```
+
+The intercept is the average petal length of setosa whose sepal length is the average sepal length.
+
+The coefficient of Sepal.Length is how much the mean petal length of setosa's vary with one unit difference in Sepal.Length
+
+The coefficient of Species is mean(versicolor with average sepal length) - mean(setosa with average sepal length)
+
+The interaction is the difference between between the slopes of Sepal length for setosa and versicolor. We can get the slopes for setosa and versicolor by running the model on subsets of the two_species data.
+
+```{r}
+
+lm(Petal.Length ~ c.(Sepal.Length), data = subset(two_species, Species == 'setosa'))
+lm(Petal.Length ~ c.(Sepal.Length), data = subset(two_species, Species == 'versicolor'))
+
+```
+
+So the slope of the interaction is 0.6865 - 0.1316 = 0.5549
+
+In other words how much the mean petal length of setosas vary with one unit difference in Sepal.Length and how much the mean petal length of versicolors vary with one unit difference in Sepal.Length
+
+### Contrast coding of species
+
+```{r}
+lm(Petal.Length ~ c.(Sepal.Length)*Species_sc, data = two_species)
+
+contrasts(two_species$Species_sc)
+
+```
+
+The intercept is the average petal length of irises (both setosas and versicolors) whose sepal length is the average sepal length. 
+
+The coefficient of Sepal.Length is how much the mean petal length of irises (both setosas and versicolors) vary with one unit difference in Sepal.Length. So this is more like the "main effect" of Sepal.Length
+
+The coefficient of Species is mean(irises with average sepal length) - mean(setosa with average sepal length). In other words how much does a particular species vary from the average. So this is the main effect of Species. 
+
+The interaction might be the difference between between the slopes of Sepal length for irises and setosa. We can get the slopes for setosa and versicolor by running the model on subsets of the two_species data.
+
+
+```{r}
+
+lm(Petal.Length ~ c.(Sepal.Length), data = two_species)
+lm(Petal.Length ~ c.(Sepal.Length), data = subset(two_species, Species == 'setosa'))
+
+```
+But it does not seem to be the case. 
+
+
