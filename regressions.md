@@ -319,11 +319,11 @@ However why this is not true when we have two predictors? When we have a model w
 
 So when we are estimating the coefficient for Species, by keeping Sepal.Length constant, we are assuming that
 
-*m**e**a**n*(*l**o**n**g**s**e**t**o**s**a*)−*m**e**a**n*(*s**h**o**r**t**s**e**t**o**s**a*)=*m**e**a**n*(*l**o**n**g**v**e**r**s**i**c**o**l**o**r*)−*m**e**a**n*(*s**h**o**r**t**v**e**r**s**i**c**o**l**o**r*)
+mean(long setosa) - mean(short setosa) = mean(long versicolor) - mean(short versicolor)
 
 Similarly when we estimating the coefficient for Sepal.Length, by keeping Species constant, we are assuming that:
 
-*m**e**a**n*(*l**o**n**g**s**e**t**o**s**a*)−*m**e**a**n*(*l**o**n**g**v**e**r**s**i**c**o**l**o**r*)=*m**e**a**n*(*s**h**o**r**t**s**e**t**o**s**a*)−*m**e**a**n*(*s**h**o**r**t**v**e**r**s**i**c**o**l**o**r*)
+mean(long setosa) - mean(long versicolor) = mean(short setosa) - mean(short versicolor)
 
 However neither of these are true. However since the model is trying to find the estimates that maximize a model that makes these assumptions, the empirical means or the difference between empirical means are not necessarily the values that minimze error and maximize likelihood of this model.
 
@@ -381,10 +381,11 @@ The interaction is the difference between the intercept and "additive effect" of
 
 In our case it is:
 
-*s**h**o**r**t* *v**e**r**s**i**c**o**l**o**r* − (*l**o**n**g* *s**e**t**o**s**a* + (*s**h**o**r**t* *s**e**t**o**s**a* − *l**o**n**g* *s**e**t**o**s**a*)+(*l**o**n**g* *v**e**r**s**i**c**o**l**o**r* − *l**o**n**g* *s**e**t**o**s**a*))
-=*s**h**o**r**t* *v**e**r**s**i**c**o**l**o**r* + *l**o**n**g* *s**e**t**o**s**a* − *s**h**o**r**t* *s**e**t**o**s**a* − *l**o**n**g* *v**e**r**s**i**c**o**l**o**r*
+short versicolor - (long setosa + (short setosa - long setosa) + (long versicolor - long setosa))
 
-=(*s**h**o**r**t* *v**e**r**s**i**c**o**l**o**r* + *l**o**n**g* *s**e**t**o**s**a*)−(*l**o**n**g* *v**e**r**s**i**c**o**l**o**r* + *s**h**o**r**t* *s**e**t**o**s**a*)
+= short versicolor + long setosa - short setosa - long versicolor
+
+= (short versicolor + long setosa) - (long versicolor + short setosa)
 
 ``` r
 mean(subset(two_species,Sepal.Length.cat == 'short' & Species == 'versicolor')$Petal.Length) + mean(subset(two_species, Sepal.Length.cat == 'long' & Species == 'setosa')$Petal.Length)   - mean(subset(two_species, Sepal.Length.cat == 'long' & Species == 'versicolor')$Petal.Length) - mean(subset(two_species, Sepal.Length.cat == 'short' & Species == 'setosa')$Petal.Length)
